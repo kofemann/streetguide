@@ -28,7 +28,8 @@ import org.osmdroid.views.overlay.Marker;
 
 import java.io.IOException;
 import java.util.Locale;
-import java.util.Objects;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 import fr.dudie.nominatim.client.JsonNominatimClient;
 import fr.dudie.nominatim.model.Element;
@@ -39,6 +40,11 @@ public class MainActivity extends AppCompatActivity {
     private double zoom = 19.0;
 
     private final Object lock = new Object();
+
+    /**
+     * Executor used to submit text-to-speech requests
+     */
+    private final Executor executor = Executors.newSingleThreadExecutor();
     private String road;
 
     private TextToSpeech tts;
@@ -48,6 +54,9 @@ public class MainActivity extends AppCompatActivity {
     // Acquire a reference to the system Location Manager
     private LocationManager locationManager;
 
+    /**
+     * Current position marker
+     */
     private Marker marker;
 
     @Override
@@ -151,22 +160,22 @@ public class MainActivity extends AppCompatActivity {
 
         marker.setPosition(point);
 
-        new Thread(new Runnable() {
+        executor.execute(new Runnable() {
             @Override
             public void run() {
                 try {
                     synchronized (lock) {
                         String newRoad = getStritName(location);
-                        if (!Objects.equals(road, newRoad)) {
-                            tts.speak(newRoad, TextToSpeech.QUEUE_FLUSH, null);
+                        if (newRoad != null && !newRoad.equals(road)) {
                             road = newRoad;
+                            tts.speak(road, TextToSpeech.QUEUE_ADD, null);
                         }
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
-        }).start();
+        });
 
 
     }
