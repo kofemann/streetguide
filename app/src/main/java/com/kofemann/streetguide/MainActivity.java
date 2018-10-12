@@ -8,6 +8,8 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.speech.tts.TextToSpeech;
 import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.widget.Button;
 
 import org.apache.http.client.HttpClient;
 import org.apache.http.conn.ClientConnectionManager;
@@ -28,8 +30,11 @@ import org.osmdroid.views.overlay.Marker;
 
 import java.io.IOException;
 import java.util.Locale;
-import java.util.concurrent.Executor;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import fr.dudie.nominatim.client.JsonNominatimClient;
 import fr.dudie.nominatim.model.Element;
@@ -37,6 +42,8 @@ import fr.dudie.nominatim.model.Element;
 public class MainActivity extends AppCompatActivity {
 
     private MapView map;
+    private Button button;
+
     private double zoom = 19.0;
 
     private final Object lock = new Object();
@@ -44,7 +51,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Executor used to submit text-to-speech requests
      */
-    private final Executor executor = Executors.newSingleThreadExecutor();
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private String road;
 
     private TextToSpeech tts;
@@ -53,6 +60,11 @@ public class MainActivity extends AppCompatActivity {
 
     // Acquire a reference to the system Location Manager
     private LocationManager locationManager;
+
+    /**
+     * minimal distance to drive before GPS calls our listener.
+     */
+    private int minDriveDistance = 5;
 
     /**
      * Current position marker
@@ -75,6 +87,19 @@ public class MainActivity extends AppCompatActivity {
 
         Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
         setContentView(R.layout.activity_main);
+
+        button = findViewById(R.id.street_name_id);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                synchronized (lock) {
+                    if (road != null) {
+                        tts.speak(road, TextToSpeech.QUEUE_ADD, null);
+                    }
+                }
+            }
+        });
+
 
         map = findViewById(R.id.map);
         map.setTileSource(TileSourceFactory.MAPNIK);
@@ -126,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             };
 
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 5, locationListener);
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, minDriveDistance, locationListener);
 
 
         } catch (SecurityException e) {
@@ -140,7 +165,7 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         map.onResume(); //needed for compass, my location overlays, v6.0.0 and up
         try {
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 5, locationListener);
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, minDriveDistance, locationListener);
         } catch (SecurityException e) {
             // Should never happen
         }
@@ -160,23 +185,26 @@ public class MainActivity extends AppCompatActivity {
 
         marker.setPosition(point);
 
-        executor.execute(new Runnable() {
+        Future<String> f = executor.submit(new Callable<String>() {
             @Override
-            public void run() {
-                try {
-                    synchronized (lock) {
-                        String newRoad = getStritName(location);
-                        if (newRoad != null && !newRoad.equals(road)) {
-                            road = newRoad;
-                            tts.speak(road, TextToSpeech.QUEUE_ADD, null);
-                        }
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+            public String call() throws Exception {
+                String newRoad = getStritName(location);
+                return newRoad;
             }
         });
 
+        try {
+            String s = f.get(2, TimeUnit.SECONDS);
+            synchronized (lock) {
+                if (s != null && !s.equals(road)) {
+                    road = s;
+                    button.setText(road);
+                    tts.speak(road, TextToSpeech.QUEUE_ADD, null);
+                }
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
 
     }
 
