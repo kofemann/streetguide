@@ -26,7 +26,10 @@
         <Button
             android:id="@+id/street_name_id"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:background="#7c7c7c"
+            android:textColor="#fff"
+            />
     </LinearLayout>
 
 
