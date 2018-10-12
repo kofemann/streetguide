@@ -183,6 +183,14 @@ public class MainActivity extends AppCompatActivity {
         GeoPoint point = new GeoPoint(location);
         mapController.setCenter(point);
 
+
+        if (location.hasBearing()) {
+            float bearing = location.getBearing();
+            float direction = 360 - bearing;
+
+            map.setMapOrientation(direction);
+        }
+
         marker.setPosition(point);
 
         Future<String> f = executor.submit(new Callable<String>() {
