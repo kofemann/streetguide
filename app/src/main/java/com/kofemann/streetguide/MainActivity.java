@@ -1,15 +1,20 @@
 package com.kofemann.streetguide;
 
 import android.content.Context;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.media.Image;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.speech.tts.TextToSpeech;
+import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.DrawableUtils;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 
 import org.apache.http.client.HttpClient;
 import org.apache.http.conn.ClientConnectionManager;
@@ -107,6 +112,9 @@ public class MainActivity extends AppCompatActivity {
         map.setMultiTouchControls(true);
 
         marker = new Marker(map, this);
+        Drawable icon = ResourcesCompat.getDrawable(getResources(), R.drawable.ic_gps_arrow, null);
+
+        marker.setIcon(icon);
         map.getOverlays().add(marker);
 
         map.addMapListener(new MapListener() {
