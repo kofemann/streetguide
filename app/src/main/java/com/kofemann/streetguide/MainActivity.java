@@ -5,16 +5,13 @@ import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.media.Image;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.speech.tts.TextToSpeech;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.DrawableUtils;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageView;
 
 import org.apache.http.client.HttpClient;
 import org.apache.http.conn.ClientConnectionManager;
@@ -54,10 +51,24 @@ public class MainActivity extends AppCompatActivity {
     private final Object lock = new Object();
 
     /**
+     * The location of last street notification.
+     */
+    private Location lastLocation;
+
+    /**
+     * Load known street.
+     */
+    private String road;
+
+    /**
+     * Minimal distance in meters to move before we check for new street name.
+     */
+    private float mixDistanceToUpdate = 15;
+
+    /**
      * Executor used to submit text-to-speech requests
      */
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private String road;
 
     private TextToSpeech tts;
 
@@ -69,7 +80,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * minimal distance to drive before GPS calls our listener.
      */
-    private int minDriveDistance = 5;
+    private int minDriveDistance = 0;
 
     /**
      * Current position marker
@@ -104,7 +115,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-
 
         map = findViewById(R.id.map);
         map.setTileSource(TileSourceFactory.MAPNIK);
@@ -190,7 +200,7 @@ public class MainActivity extends AppCompatActivity {
         mapController.setZoom(zoom);
         GeoPoint point = new GeoPoint(location);
         mapController.setCenter(point);
-
+        marker.setPosition(point);
 
         if (location.hasBearing()) {
             float bearing = location.getBearing();
@@ -199,29 +209,31 @@ public class MainActivity extends AppCompatActivity {
             map.setMapOrientation(direction);
         }
 
-        marker.setPosition(point);
+        if (lastLocation == null || location.distanceTo(lastLocation) > mixDistanceToUpdate) {
 
-        Future<String> f = executor.submit(new Callable<String>() {
-            @Override
-            public String call() throws Exception {
-                String newRoad = getStritName(location);
-                return newRoad;
-            }
-        });
+            lastLocation = location;
 
-        try {
-            String s = f.get(2, TimeUnit.SECONDS);
-            synchronized (lock) {
-                if (s != null && !s.equals(road)) {
-                    road = s;
-                    button.setText(road);
-                    tts.speak(road, TextToSpeech.QUEUE_ADD, null);
+            Future<String> f = executor.submit(new Callable<String>() {
+                @Override
+                public String call() throws Exception {
+                    return getStritName(location);
                 }
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
+            });
 
+            try {
+                String s = f.get(2, TimeUnit.SECONDS);
+                synchronized (lock) {
+                    if (s != null && !s.equals(road)) {
+                        road = s;
+                        button.setText(road);
+                        tts.speak(road, TextToSpeech.QUEUE_ADD, null);
+                    }
+                }
+
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
+        }
     }
 
 
