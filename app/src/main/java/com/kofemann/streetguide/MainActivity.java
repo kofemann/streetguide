@@ -190,6 +190,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onPause() {
+        locationManager.removeUpdates(locationListener);
         super.onPause();
         map.onPause();  //needed for compass, my location overlays, v6.0.0 and up
     }
