@@ -5,6 +5,8 @@ import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.speech.tts.TextToSpeech;
@@ -93,13 +95,23 @@ public class MainActivity extends AppCompatActivity {
 
         Context ctx = getApplicationContext();
 
+        // use speakers
+        setVolumeControlStream(AudioManager.STREAM_MUSIC);
+
         tts = new TextToSpeech(ctx, new TextToSpeech.OnInitListener() {
             public void onInit(int status) {
-
+                if (status == TextToSpeech.SUCCESS) {
+                    tts.setLanguage(Locale.GERMANY);
+                    tts.setAudioAttributes(new AudioAttributes.Builder()
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .build()
+                    );
+                }
             }
         });
 
-        tts.setLanguage(Locale.GERMANY);
+
 
         Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
         setContentView(R.layout.activity_main);
@@ -110,7 +122,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 synchronized (lock) {
                     if (road != null) {
-                        tts.speak(road, TextToSpeech.QUEUE_ADD, null);
+                        tts.speak(road, TextToSpeech.QUEUE_ADD, null, null);
                     }
                 }
             }
