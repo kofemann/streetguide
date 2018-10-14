@@ -6,7 +6,12 @@ This is a simple Android application that tells you on which street you  are cur
 Project Goal
 ------------
 
-The goal of this project is to learn programing for Android. Thus do not expect **StringGuide** to be a navigation application.
+This application is developed to let my wife to learn street names that she drives on.
+
+Liability
+---------
+
+Use AS-IS. No guarantee of any kind.
 
 License
 -------
