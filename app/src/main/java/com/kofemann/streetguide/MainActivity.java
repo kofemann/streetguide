@@ -12,16 +12,18 @@ import android.preference.PreferenceManager;
 import android.speech.tts.TextToSpeech;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 
-import org.apache.http.client.HttpClient;
-import org.apache.http.conn.ClientConnectionManager;
-import org.apache.http.conn.scheme.Scheme;
-import org.apache.http.conn.scheme.SchemeRegistry;
-import org.apache.http.conn.ssl.SSLSocketFactory;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.conn.SingleClientConnManager;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
+
+import org.json.JSONObject;
 import org.osmdroid.api.IMapController;
 import org.osmdroid.config.Configuration;
 import org.osmdroid.events.MapListener;
@@ -32,16 +34,9 @@ import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
 
-import java.io.IOException;
+import java.util.HashMap;
 import java.util.Locale;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-
-import fr.dudie.nominatim.client.JsonNominatimClient;
-import fr.dudie.nominatim.model.Element;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -67,11 +62,6 @@ public class MainActivity extends AppCompatActivity {
      */
     private float mixDistanceToUpdate = 15;
 
-    /**
-     * Executor used to submit text-to-speech requests
-     */
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
-
     private TextToSpeech tts;
 
     private LocationListener locationListener;
@@ -88,6 +78,12 @@ public class MainActivity extends AppCompatActivity {
      * Current position marker
      */
     private Marker marker;
+
+    /**
+     * Volley request RequestQueue.
+     */
+
+    private RequestQueue queue;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -111,6 +107,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        queue = Volley.newRequestQueue(this);
 
 
         Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
@@ -185,7 +182,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         } catch (SecurityException e) {
-
+            Log.e("gps", "Receiving of location events not allowed", e);
         }
 
     }
@@ -197,7 +194,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, minDriveDistance, locationListener);
         } catch (SecurityException e) {
-            // Should never happen
+            Log.e("gps", "Receiving of location events not allowed", e);
         }
     }
 
@@ -226,51 +223,33 @@ public class MainActivity extends AppCompatActivity {
 
             lastLocation = location;
 
-            Future<String> f = executor.submit(new Callable<String>() {
+            String url = String.format("https://nominatim.openstreetmap.org/reverse?email=%s&format=jsonv2&lat=%f&lon=%f",
+                    "kofemann@gmai.com", lastLocation.getLatitude(), lastLocation.getLongitude());
+
+            // Request a string response from the provided URL.
+            JsonObjectRequest reverseMapRequest = new JsonObjectRequest(Request.Method.GET, url, null,
+                    new Response.Listener<JSONObject>() {
+                        @Override
+                        public void onResponse(JSONObject response) {
+                            try {
+                                JSONObject address = response.getJSONObject("address");
+                                if (address.has("road")) {
+                                    road = address.getString("road");
+                                    button.setText(road);
+                                    tts.speak(road, TextToSpeech.QUEUE_ADD, null, null);
+                                }
+                            } catch (Exception e) {
+                                Log.e("http", e.toString(), e);
+                            }
+                        }
+                    }, new Response.ErrorListener() {
                 @Override
-                public String call() throws Exception {
-                    return getStritName(location);
+                public void onErrorResponse(VolleyError error) {
+                    Log.i("http", error.toString());
                 }
             });
 
-            try {
-                String s = f.get(2, TimeUnit.SECONDS);
-                synchronized (lock) {
-                    if (s != null && !s.equals(road)) {
-                        road = s;
-                        button.setText(road);
-                        tts.speak(road, TextToSpeech.QUEUE_ADD, null);
-                    }
-                }
-
-            } catch (Throwable t) {
-                t.printStackTrace();
-            }
+            queue.add(reverseMapRequest);
         }
-    }
-
-
-    private String getStritName(Location location) throws IOException {
-        JsonNominatimClient nominatimClient;
-
-
-        final SchemeRegistry registry = new SchemeRegistry();
-        registry.register(new Scheme("https", SSLSocketFactory.getSocketFactory(), 443));
-        final ClientConnectionManager connexionManager = new SingleClientConnManager(null, registry);
-
-        final HttpClient httpClient = new DefaultHttpClient(connexionManager, null);
-
-        final String baseUrl = "https://nominatim.openstreetmap.org/";
-        final String email = "kofemann@gmail.com";
-        nominatimClient = new JsonNominatimClient(baseUrl, httpClient, email);
-
-        fr.dudie.nominatim.model.Address address = nominatimClient.getAddress(location.getLongitude(), location.getLatitude());
-        for (Element e : address.getAddressElements()) {
-            if (e.getKey().equals("road")) {
-                return e.getValue();
-            }
-        }
-
-        return null;
     }
 }
