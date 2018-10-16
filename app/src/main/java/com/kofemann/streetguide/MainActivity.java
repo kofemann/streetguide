@@ -109,7 +109,6 @@ public class MainActivity extends AppCompatActivity {
 
         queue = Volley.newRequestQueue(this);
 
-
         Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
         setContentView(R.layout.activity_main);
 
@@ -191,6 +190,7 @@ public class MainActivity extends AppCompatActivity {
     public void onResume() {
         super.onResume();
         map.onResume(); //needed for compass, my location overlays, v6.0.0 and up
+        queue.start();
         try {
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, minDriveDistance, locationListener);
         } catch (SecurityException e) {
@@ -202,6 +202,7 @@ public class MainActivity extends AppCompatActivity {
         locationManager.removeUpdates(locationListener);
         super.onPause();
         map.onPause();  //needed for compass, my location overlays, v6.0.0 and up
+        queue.stop();
     }
 
     private void makeUseOfNewLocation(final Location location) {
@@ -234,9 +235,12 @@ public class MainActivity extends AppCompatActivity {
                             try {
                                 JSONObject address = response.getJSONObject("address");
                                 if (address.has("road")) {
-                                    road = address.getString("road");
-                                    button.setText(road);
-                                    tts.speak(road, TextToSpeech.QUEUE_ADD, null, null);
+                                    String s = address.getString("road");
+                                    if (!s.equals(road)) {
+                                        road = s;
+                                        button.setText(road);
+                                        tts.speak(road, TextToSpeech.QUEUE_ADD, null, null);
+                                    }
                                 }
                             } catch (Exception e) {
                                 Log.e("http", e.toString(), e);
