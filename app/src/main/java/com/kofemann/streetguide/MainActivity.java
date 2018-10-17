@@ -34,9 +34,7 @@ import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
 
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -233,15 +231,18 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void onResponse(JSONObject response) {
                             try {
-                                JSONObject address = response.getJSONObject("address");
-                                if (address.has("road")) {
+                                if (response.getString("addresstype").equals("road")) {
+                                    JSONObject address = response.getJSONObject("address");
                                     String s = address.getString("road");
-                                    if (!s.equals(road)) {
-                                        road = s;
-                                        button.setText(road);
-                                        tts.speak(road, TextToSpeech.QUEUE_ADD, null, null);
+                                    synchronized (lock) {
+                                        if (!s.equals(road)) {
+                                            road = s;
+                                            button.setText(road);
+                                            tts.speak(road, TextToSpeech.QUEUE_ADD, null, null);
+                                        }
                                     }
                                 }
+                                Log.d("http", response.toString());
                             } catch (Exception e) {
                                 Log.e("http", e.toString(), e);
                             }
