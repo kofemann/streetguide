@@ -146,58 +146,53 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
+        enableLocationListener();
+
+    }
+
+    private void enableLocationListener() throws SecurityException {
+
+        // Define a listener that responds to location updates
+        locationListener = new LocationListener() {
+            public void onLocationChanged(final Location location) {
+                // Called when a new location is found by the network location provider.
+                makeUseOfNewLocation(location);
+            }
+
+            public void onStatusChanged(String provider, int status, Bundle extras) {
+            }
+
+            public void onProviderEnabled(String provider) {
+            }
+
+            public void onProviderDisabled(String provider) {
+            }
+        };
 
         try {
-
-            locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, minDriveDistance, locationListener);
             // Register the listener with the Location Manager to receive location updates
             Location lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
             if (lastKnownLocation != null) {
                 makeUseOfNewLocation(lastKnownLocation);
             }
-
-
-            // Define a listener that responds to location updates
-            locationListener = new LocationListener() {
-                public void onLocationChanged(final Location location) {
-                    // Called when a new location is found by the network location provider.
-                    makeUseOfNewLocation(location);
-                }
-
-                public void onStatusChanged(String provider, int status, Bundle extras) {
-                }
-
-                public void onProviderEnabled(String provider) {
-                }
-
-                public void onProviderDisabled(String provider) {
-                }
-            };
-
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, minDriveDistance, locationListener);
-
-
         } catch (SecurityException e) {
             Log.e("gps", "Receiving of location events not allowed", e);
         }
-
     }
-
 
     public void onResume() {
         super.onResume();
         map.onResume(); //needed for compass, my location overlays, v6.0.0 and up
         queue.start();
-        try {
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, minDriveDistance, locationListener);
-        } catch (SecurityException e) {
-            Log.e("gps", "Receiving of location events not allowed", e);
-        }
+        enableLocationListener();
     }
 
     public void onPause() {
-        locationManager.removeUpdates(locationListener);
+        if (locationListener != null) {
+            locationManager.removeUpdates(locationListener);
+        }
         super.onPause();
         map.onPause();  //needed for compass, my location overlays, v6.0.0 and up
         queue.stop();
