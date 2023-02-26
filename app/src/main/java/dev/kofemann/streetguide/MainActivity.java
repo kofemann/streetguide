@@ -47,11 +47,19 @@ import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.TilesOverlay;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
+
+    enum UpdateMode {
+        POSITION,
+        ROAD
+    }
+
 
     private MapView map;
     private Button button;
@@ -246,32 +254,55 @@ public class MainActivity extends AppCompatActivity {
         queue.stop();
     }
 
-    private synchronized void makeUseOfNewLocation(final Location location) {
+    private Set<UpdateMode> needUpdate(final Location location) {
 
-        if (lastLocation != null && location.distanceTo(lastLocation) < mixDistanceToUpdate) {
-            // we still close enough
-            return;
+        if (road == null || lastLocation == null) {
+            Log.d("location", "road or last position is missing.");
+            return EnumSet.allOf(UpdateMode.class);
         }
 
-        IMapController mapController = map.getController();
-        mapController.setZoom(zoom);
-        GeoPoint point = new GeoPoint(location);
-        mapController.setCenter(point);
-        marker.setPosition(point);
-
-        if (location.hasBearing()) {
-            float bearing = location.getBearing();
-            float direction = 360 - bearing;
-
-            map.setMapOrientation(direction);
+        if (location.distanceTo(lastLocation) < mixDistanceToUpdate) {
+            // we still close enough
+            Log.d("location", "No position update... to close.");
+            return EnumSet.noneOf(UpdateMode.class);
         }
 
         if (lastUpdate + TimeUnit.SECONDS.toMillis(10) > System.currentTimeMillis()) {
             // Reverse Geocoding once in 10 sec.
+            Log.d("location", "Position-only update due to time window limit.");
+            return EnumSet.of(UpdateMode.POSITION);
+        }
+
+        Log.d("location", "forced position update");
+        return EnumSet.allOf(UpdateMode.class);
+    }
+
+    private synchronized void makeUseOfNewLocation(final Location location) {
+
+
+        Set<UpdateMode> updates = needUpdate(location);
+
+        Log.d("location", "need update: " + updates);
+        if (updates.isEmpty()) {
             return;
         }
 
-        if (lastLocation == null || road == null) {
+        if (updates.contains(UpdateMode.POSITION)) {
+            IMapController mapController = map.getController();
+            mapController.setZoom(zoom);
+            GeoPoint point = new GeoPoint(location);
+            mapController.setCenter(point);
+            marker.setPosition(point);
+
+            if (location.hasBearing()) {
+                float bearing = location.getBearing();
+                float direction = 360 - bearing;
+
+                map.setMapOrientation(direction);
+            }
+        }
+
+        if (updates.contains(UpdateMode.ROAD)) {
 
             lastLocation = location;
 
