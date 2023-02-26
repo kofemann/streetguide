@@ -94,6 +94,8 @@ public class MainActivity extends AppCompatActivity {
 
     private final int REQUEST_PERMISSIONS_REQUEST_CODE = 1;
 
+    private long lastUpdate;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -190,7 +192,7 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, TimeUnit.SECONDS.toMillis(10), minDriveDistance, locationListener);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, minDriveDistance, locationListener);
         // Register the listener with the Location Manager to receive location updates
         Location lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
         if (lastKnownLocation != null) {
@@ -218,7 +220,7 @@ public class MainActivity extends AppCompatActivity {
         queue.stop();
     }
 
-    private void makeUseOfNewLocation(final Location location) {
+    private synchronized void makeUseOfNewLocation(final Location location) {
 
         IMapController mapController = map.getController();
         mapController.setZoom(zoom);
@@ -231,6 +233,11 @@ public class MainActivity extends AppCompatActivity {
             float direction = 360 - bearing;
 
             map.setMapOrientation(direction);
+        }
+
+        if (lastUpdate + TimeUnit.SECONDS.toMillis(10) > System.currentTimeMillis()) {
+            // Reverse Geocoding once in 10 sec.
+            return;
         }
 
         if (lastLocation == null || road == null || location.distanceTo(lastLocation) > mixDistanceToUpdate) {
@@ -269,6 +276,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
 
+            lastUpdate = System.currentTimeMillis();
             queue.add(reverseMapRequest);
         }
     }
