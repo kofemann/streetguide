@@ -135,7 +135,7 @@ public class MainActivity extends AppCompatActivity {
 
         map = findViewById(R.id.map);
         map.setTileSource(TileSourceFactory.MAPNIK);
-        map.setBuiltInZoomControls(true);
+        map.setVisibility(View.VISIBLE);
         map.setMultiTouchControls(true);
 
         marker = new Marker(map, this);
