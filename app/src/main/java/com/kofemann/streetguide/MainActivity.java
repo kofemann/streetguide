@@ -238,7 +238,7 @@ public class MainActivity extends AppCompatActivity {
             lastLocation = location;
 
             String url = String.format("https://nominatim.openstreetmap.org/reverse?email=%s&format=jsonv2&lat=%f&lon=%f",
-                    "kofemann@gmai.com", lastLocation.getLatitude(), lastLocation.getLongitude());
+                    "kofemann@gmail.com", lastLocation.getLatitude(), lastLocation.getLongitude());
 
             // Request a string response from the provided URL.
             JsonObjectRequest reverseMapRequest = new JsonObjectRequest(Request.Method.GET, url, null,
