@@ -149,7 +149,7 @@ public class MainActivity extends AppCompatActivity {
         map.setTileSource(TileSourceFactory.MAPNIK);
         map.setVisibility(View.VISIBLE);
         map.setMultiTouchControls(true);
-        adjustToDayNightMode();
+        adjustToDayNightMode(map.getContext().getResources().getConfiguration().uiMode);
 
         marker = new Marker(map, this);
         Drawable icon = ResourcesCompat.getDrawable(getResources(), R.drawable.ic_gps_arrow, null);
@@ -175,17 +175,19 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private void adjustToDayNightMode() {
-        int currentNightMode = map.getContext().getResources().getConfiguration().uiMode & UI_MODE_NIGHT_MASK;
+    private void adjustToDayNightMode(int uiMode) {
+        int currentNightMode = uiMode & UI_MODE_NIGHT_MASK;
         if (currentNightMode == UI_MODE_NIGHT_YES) {
             map.getOverlayManager().getTilesOverlay().setColorFilter(TilesOverlay.INVERT_COLORS);
+        } else {
+            map.getOverlayManager().getTilesOverlay().setColorFilter(null);
         }
     }
 
     @Override
     public void onConfigurationChanged(@NonNull android.content.res.Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        adjustToDayNightMode();
+        adjustToDayNightMode(newConfig.uiMode);
     }
 
     private void enableLocationListener() {
