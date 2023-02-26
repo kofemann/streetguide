@@ -1,12 +1,13 @@
 package dev.kofemann.streetguide;
 
-import static android.content.res.Configuration.UI_MODE_NIGHT_MASK;
-import static android.content.res.Configuration.UI_MODE_NIGHT_YES;
-
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -16,7 +17,6 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.speech.tts.TextToSpeech;
 
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -53,7 +53,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
     enum UpdateMode {
         POSITION,
@@ -110,6 +110,15 @@ public class MainActivity extends AppCompatActivity {
 
     private long lastUpdate;
 
+    /** Light sensor to adjust map day-night mode */
+    private Sensor light;
+    private SensorManager sensorManager;
+
+    /**
+     * Whatever the night mode is enabled;
+     */
+    private boolean nightMode;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -157,7 +166,10 @@ public class MainActivity extends AppCompatActivity {
         map.setTileSource(TileSourceFactory.MAPNIK);
         map.setVisibility(View.VISIBLE);
         map.setMultiTouchControls(true);
-        adjustToDayNightMode(map.getContext().getResources().getConfiguration().uiMode);
+
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        light = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
+        sensorManager.registerListener(this, light, SensorManager.SENSOR_DELAY_NORMAL);
 
         marker = new Marker(map, this);
         Drawable icon = ResourcesCompat.getDrawable(getResources(), R.drawable.ic_gps_arrow, null);
@@ -181,21 +193,6 @@ public class MainActivity extends AppCompatActivity {
         locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
         enableLocationListener();
 
-    }
-
-    private void adjustToDayNightMode(int uiMode) {
-        int currentNightMode = uiMode & UI_MODE_NIGHT_MASK;
-        if (currentNightMode == UI_MODE_NIGHT_YES) {
-            map.getOverlayManager().getTilesOverlay().setColorFilter(TilesOverlay.INVERT_COLORS);
-        } else {
-            map.getOverlayManager().getTilesOverlay().setColorFilter(null);
-        }
-    }
-
-    @Override
-    public void onConfigurationChanged(@NonNull android.content.res.Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-        adjustToDayNightMode(newConfig.uiMode);
     }
 
     private void enableLocationListener() {
@@ -359,5 +356,25 @@ public class MainActivity extends AppCompatActivity {
                     REQUEST_PERMISSIONS_REQUEST_CODE
             );
         }
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent sensorEvent) {
+        float lx = sensorEvent.values[0];
+        Log.d("light-sensor", "lx value: " + lx);
+        if (lx < SensorManager.LIGHT_CLOUDY && !nightMode) {
+            Log.d("light-sensor", "enable night mode");
+            map.getOverlayManager().getTilesOverlay().setColorFilter(TilesOverlay.INVERT_COLORS);
+            nightMode = true;
+        } else if (lx > SensorManager.LIGHT_CLOUDY && nightMode) {
+            Log.d("light-sensor", "enable day mode");
+            map.getOverlayManager().getTilesOverlay().setColorFilter(null);
+            nightMode = false;
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int i) {
+        // nop
     }
 }
