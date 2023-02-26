@@ -17,6 +17,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.res.ResourcesCompat;
 import androidx.appcompat.app.AppCompatActivity;
+
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -42,6 +43,7 @@ import org.osmdroid.views.overlay.Marker;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -117,11 +119,6 @@ public class MainActivity extends AppCompatActivity {
         queue = Volley.newRequestQueue(this);
 
         Configuration.getInstance().load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx));
-        requestPermissionsIfNecessary(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-        );
-
         setContentView(R.layout.activity_main);
 
         button = findViewById(R.id.street_name_id);
@@ -165,7 +162,16 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private void enableLocationListener() throws SecurityException {
+    private void enableLocationListener() {
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionsIfNecessary(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+            );
+        }
 
         // Define a listener that responds to location updates
         locationListener = new LocationListener() {
@@ -184,15 +190,13 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
-        try {
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, minDriveDistance, locationListener);
-            // Register the listener with the Location Manager to receive location updates
-            Location lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            if (lastKnownLocation != null) {
-                makeUseOfNewLocation(lastKnownLocation);
-            }
-        } catch (SecurityException e) {
-            Log.e("gps", "Receiving of location events not allowed", e);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, TimeUnit.SECONDS.toMillis(10), minDriveDistance, locationListener);
+        // Register the listener with the Location Manager to receive location updates
+        Location lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        if (lastKnownLocation != null) {
+            makeUseOfNewLocation(lastKnownLocation);
+        } else {
+            locationManager.requestSingleUpdate(LocationManager.GPS_PROVIDER, locationListener, null);
         }
     }
 
@@ -200,16 +204,14 @@ public class MainActivity extends AppCompatActivity {
         super.onResume();
         map.onResume(); //needed for compass, my location overlays, v6.0.0 and up
         queue.start();
+        road = null;
         enableLocationListener();
-
-        if (road != null) {
-            button.setText(road);
-        }
     }
 
     public void onPause() {
         if (locationListener != null) {
             locationManager.removeUpdates(locationListener);
+            road = null;
         }
         super.onPause();
         map.onPause();  //needed for compass, my location overlays, v6.0.0 and up
@@ -231,7 +233,7 @@ public class MainActivity extends AppCompatActivity {
             map.setMapOrientation(direction);
         }
 
-        if (lastLocation == null || location.distanceTo(lastLocation) > mixDistanceToUpdate) {
+        if (lastLocation == null || road == null || location.distanceTo(lastLocation) > mixDistanceToUpdate) {
 
             lastLocation = location;
 
@@ -244,7 +246,7 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void onResponse(JSONObject response) {
                             try {
-                                if (response.getString("addresstype").equals("road")) {
+                                if (response.has("address")) {
                                     JSONObject address = response.getJSONObject("address");
                                     String s = address.getString("road");
                                     synchronized (lock) {
@@ -271,7 +273,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void requestPermissionsIfNecessary(String ... permissions) {
+    private void requestPermissionsIfNecessary(String... permissions) {
         List<String> permissionsToRequest = new ArrayList<>();
         for (String permission : permissions) {
             if (ContextCompat.checkSelfPermission(this, permission)
