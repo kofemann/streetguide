@@ -246,6 +246,11 @@ public class MainActivity extends AppCompatActivity {
 
     private synchronized void makeUseOfNewLocation(final Location location) {
 
+        if (lastLocation != null && location.distanceTo(lastLocation) < mixDistanceToUpdate) {
+            // we still close enough
+            return;
+        }
+
         IMapController mapController = map.getController();
         mapController.setZoom(zoom);
         GeoPoint point = new GeoPoint(location);
@@ -264,7 +269,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        if (lastLocation == null || road == null || location.distanceTo(lastLocation) > mixDistanceToUpdate) {
+        if (lastLocation == null || road == null) {
 
             lastLocation = location;
 
