@@ -201,6 +201,10 @@ public class MainActivity extends AppCompatActivity {
         map.onResume(); //needed for compass, my location overlays, v6.0.0 and up
         queue.start();
         enableLocationListener();
+
+        if (road != null) {
+            button.setText(road);
+        }
     }
 
     public void onPause() {
