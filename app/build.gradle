@@ -3,7 +3,7 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 33
     defaultConfig {
-        applicationId "com.kofemann.streetguide"
+        applicationId "dev.kofemann.streetguide"
         minSdkVersion 21
         targetSdkVersion 28
         versionCode 1
@@ -16,7 +16,7 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-    namespace 'com.kofemann.streetguide'
+    namespace 'dev.kofemann.streetguide'
 }
 
 dependencies {

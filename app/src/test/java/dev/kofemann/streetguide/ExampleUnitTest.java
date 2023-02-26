@@ -1,4 +1,4 @@
-package com.kofemann.streetguide;
+package dev.kofemann.streetguide;
 
 import org.junit.Test;
 

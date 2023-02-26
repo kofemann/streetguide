@@ -1,4 +1,4 @@
-package com.kofemann.streetguide;
+package dev.kofemann.streetguide;
 
 import android.content.Context;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -21,6 +21,6 @@ public class ExampleInstrumentedTest {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getTargetContext();
 
-        assertEquals("com.kofemann.streetguide", appContext.getPackageName());
+        assertEquals("dev.kofemann.streetguide", appContext.getPackageName());
     }
 }
