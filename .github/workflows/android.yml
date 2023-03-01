@@ -24,9 +24,14 @@ jobs:
       run: chmod +x gradlew
     - name: Build with Gradle
       run: ./gradlew build
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+
+  publish_dev:
+    name: Upload debug artifacts
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.ref == 'refs/heads/master'
+    steps:
+    - uses: actions/upload-artifact@v3
       with:
-        name: app-release.apk
-        path: app/release/app-release.apk
-        token: ${{ secrets.GITHUB_TOKEN }}
+        name: app-debug.apk
+        path: app/build/outputs/apk/debug/app-debug.apk
