@@ -84,6 +84,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private float mixDistanceToUpdate = 15;
 
     private TextToSpeech tts;
+    private boolean languageSet;
 
     private LocationListener locationListener;
 
@@ -126,21 +127,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         Context ctx = getApplicationContext();
 
-        // use speakers
-        setVolumeControlStream(AudioManager.STREAM_MUSIC);
-
-        tts = new TextToSpeech(ctx, new TextToSpeech.OnInitListener() {
-            public void onInit(int status) {
-                if (status == TextToSpeech.SUCCESS) {
-                    tts.setLanguage(Locale.GERMANY);
-                    tts.setAudioAttributes(new AudioAttributes.Builder()
-                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .build()
-                    );
-                }
-            }
-        });
+        tts = initTextToSpeech(ctx);
 
         queue = Volley.newRequestQueue(this);
 
@@ -195,6 +182,37 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     }
 
+    // some heuristics to guess the language by country code
+    private Locale countryCodeToLocate(String countryCode) {
+
+        for(Locale l : tts.getAvailableLanguages()) {
+            // try to convert `en_US` into `us`
+            String lang = l.toString().toLowerCase();
+            String prefix = l.getLanguage().toLowerCase();
+            if (lang.startsWith(prefix + "_" + countryCode)) {
+                return l;
+            }
+        }
+        return Locale.getDefault();
+    }
+
+
+    private TextToSpeech initTextToSpeech(Context ctx) {
+        // use speakers
+        setVolumeControlStream(AudioManager.STREAM_MUSIC);
+
+        return new TextToSpeech(ctx, status -> {
+            if (status == TextToSpeech.SUCCESS) {
+                tts.setAudioAttributes(new AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .setUsage(AudioAttributes.USAGE_ASSISTANT)
+                        .build()
+                );
+                tts.setPitch(1.f);
+            }
+        });
+    }
+
     private void enableLocationListener() {
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
@@ -242,11 +260,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     public void onPause() {
+        super.onPause();
         if (locationListener != null) {
             locationManager.removeUpdates(locationListener);
             road = null;
         }
-        super.onPause();
         map.onPause();  //needed for compass, my location overlays, v6.0.0 and up
         queue.stop();
     }
@@ -319,6 +337,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                                         if (!s.equals(road)) {
                                             road = s;
                                             button.setText(road);
+                                            if (!languageSet) {
+                                                Locale locale = address.has("country_code") ?
+                                                        countryCodeToLocate(address.getString("country_code"))
+                                                        : Locale.getDefault();
+                                                tts.setLanguage(locale);
+                                                languageSet = true;
+                                            }
                                             tts.speak(road, TextToSpeech.QUEUE_ADD, null, null);
                                         }
                                     }
