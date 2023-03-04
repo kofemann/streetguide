@@ -81,7 +81,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     /**
      * Minimal distance in meters to move before we check for new street name.
      */
-    private float mixDistanceToUpdate = 15;
+    private final float mixDistanceToUpdate = 15;
 
     private TextToSpeech tts;
     private boolean languageSet;
@@ -138,13 +138,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         setContentView(R.layout.activity_main);
 
         button = findViewById(R.id.street_name_id);
-        button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                synchronized (lock) {
-                    if (road != null) {
-                        tts.speak(road, TextToSpeech.QUEUE_ADD, null, null);
-                    }
+        button.setOnClickListener(v -> {
+            synchronized (lock) {
+                if (road != null) {
+                    tts.speak(road, TextToSpeech.QUEUE_ADD, null, null);
                 }
             }
         });
@@ -326,39 +323,31 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
             // Request a string response from the provided URL.
             JsonObjectRequest reverseMapRequest = new JsonObjectRequest(Request.Method.GET, url, null,
-                    new Response.Listener<JSONObject>() {
-                        @Override
-                        public void onResponse(JSONObject response) {
-                            try {
-                                if (response.has("address")) {
-                                    JSONObject address = response.getJSONObject("address");
-                                    String s = address.getString("road");
-                                    synchronized (lock) {
-                                        if (!s.equals(road)) {
-                                            road = s;
-                                            button.setText(road);
-                                            if (!languageSet) {
-                                                Locale locale = address.has("country_code") ?
-                                                        countryCodeToLocate(address.getString("country_code"))
-                                                        : Locale.getDefault();
-                                                tts.setLanguage(locale);
-                                                languageSet = true;
-                                            }
-                                            tts.speak(road, TextToSpeech.QUEUE_ADD, null, null);
+                    response -> {
+                        try {
+                            if (response.has("address")) {
+                                JSONObject address = response.getJSONObject("address");
+                                String s = address.getString("road");
+                                synchronized (lock) {
+                                    if (!s.equals(road)) {
+                                        road = s;
+                                        button.setText(road);
+                                        if (!languageSet) {
+                                            Locale locale = address.has("country_code") ?
+                                                    countryCodeToLocate(address.getString("country_code"))
+                                                    : Locale.getDefault();
+                                            tts.setLanguage(locale);
+                                            languageSet = true;
                                         }
+                                        tts.speak(road, TextToSpeech.QUEUE_ADD, null, null);
                                     }
                                 }
-                                Log.d("http", response.toString());
-                            } catch (Exception e) {
-                                Log.e("http", e.toString(), e);
                             }
+                            Log.d("http", response.toString());
+                        } catch (Exception e) {
+                            Log.e("http", e.toString(), e);
                         }
-                    }, new Response.ErrorListener() {
-                @Override
-                public void onErrorResponse(VolleyError error) {
-                    Log.i("http", error.toString());
-                }
-            });
+                    }, error -> Log.i("http", error.toString()));
 
             lastUpdate = System.currentTimeMillis();
             queue.add(reverseMapRequest);
