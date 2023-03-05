@@ -3,7 +3,6 @@ package dev.kofemann.streetguide;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.graphics.drawable.Drawable;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -20,7 +19,6 @@ import android.speech.tts.TextToSpeech;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import androidx.core.content.res.ResourcesCompat;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.util.Log;
@@ -29,8 +27,6 @@ import android.widget.Button;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 
@@ -43,8 +39,9 @@ import org.osmdroid.events.ZoomEvent;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
-import org.osmdroid.views.overlay.Marker;
 import org.osmdroid.views.overlay.TilesOverlay;
+import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
+import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -64,7 +61,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private MapView map;
     private Button button;
 
-    private double zoom = 19.0;
+    private double zoom = 21.0;
 
     private final Object lock = new Object();
 
@@ -99,7 +96,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     /**
      * Current position marker
      */
-    private Marker marker;
+    private MyLocationNewOverlay marker;
 
     /**
      * Volley request RequestQueue.
@@ -155,10 +152,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         light = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
         sensorManager.registerListener(this, light, SensorManager.SENSOR_DELAY_NORMAL);
 
-        marker = new Marker(map, this);
-        Drawable icon = ResourcesCompat.getDrawable(getResources(), R.drawable.ic_gps_arrow, null);
-
-        marker.setIcon(icon);
+        marker = new MyLocationNewOverlay(new GpsMyLocationProvider(ctx),map);
         map.getOverlays().add(marker);
 
         map.addMapListener(new MapListener() {
@@ -170,6 +164,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             @Override
             public boolean onZoom(ZoomEvent event) {
                 zoom = event.getZoomLevel();
+                Log.d("map", "new zoom level: " + zoom);
                 return false;
             }
         });
@@ -304,7 +299,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             mapController.setZoom(zoom);
             GeoPoint point = new GeoPoint(location);
             mapController.setCenter(point);
-            marker.setPosition(point);
 
             if (location.hasBearing()) {
                 float bearing = location.getBearing();
