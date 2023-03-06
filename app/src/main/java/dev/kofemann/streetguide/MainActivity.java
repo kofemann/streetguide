@@ -15,15 +15,14 @@ import android.media.AudioManager;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.speech.tts.TextToSpeech;
-
-import androidx.appcompat.app.AppCompatDelegate;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -44,24 +43,16 @@ import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
-    enum UpdateMode {
-        POSITION,
-        ROAD
-    }
-
-
     private MapView map;
     private Button button;
 
-    private double zoom = 21.0;
+    private double zoom = 19.0;
 
     private final Object lock = new Object();
 
@@ -261,54 +252,44 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         queue.stop();
     }
 
-    private Set<UpdateMode> needUpdate(final Location location) {
+    private boolean needUpdate(final Location location) {
 
         if (road == null || lastLocation == null) {
             Log.d("location", "road or last position is missing.");
-            return EnumSet.allOf(UpdateMode.class);
+            return true;
         }
 
         if (location.distanceTo(lastLocation) < mixDistanceToUpdate) {
             // we still close enough
             Log.d("location", "No position update... to close.");
-            return EnumSet.noneOf(UpdateMode.class);
+            return false;
         }
 
         if (lastUpdate + TimeUnit.SECONDS.toMillis(10) > System.currentTimeMillis()) {
             // Reverse Geocoding once in 10 sec.
             Log.d("location", "Position-only update due to time window limit.");
-            return EnumSet.of(UpdateMode.POSITION);
+            return false;
         }
 
         Log.d("location", "forced position update");
-        return EnumSet.allOf(UpdateMode.class);
+        return true;
     }
 
     private synchronized void makeUseOfNewLocation(final Location location) {
 
+        IMapController mapController = map.getController();
+        mapController.setZoom(zoom);
+        GeoPoint point = new GeoPoint(location);
+        mapController.setCenter(point);
 
-        Set<UpdateMode> updates = needUpdate(location);
+        if (location.hasBearing()) {
+            float bearing = location.getBearing();
+            float direction = 360 - bearing;
 
-        Log.d("location", "need update: " + updates);
-        if (updates.isEmpty()) {
-            return;
+            map.setMapOrientation(direction);
         }
 
-        if (updates.contains(UpdateMode.POSITION)) {
-            IMapController mapController = map.getController();
-            mapController.setZoom(zoom);
-            GeoPoint point = new GeoPoint(location);
-            mapController.setCenter(point);
-
-            if (location.hasBearing()) {
-                float bearing = location.getBearing();
-                float direction = 360 - bearing;
-
-                map.setMapOrientation(direction);
-            }
-        }
-
-        if (updates.contains(UpdateMode.ROAD)) {
+        if (needUpdate(location)) {
 
             lastLocation = location;
 
